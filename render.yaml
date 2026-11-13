@@ -5,7 +5,7 @@ services:
     runtime: node
     rootDir: backend
     plan: free
-    buildCommand: npm ci && npx prisma generate --schema=prisma/schema.postgresql.prisma && npm run build
+    buildCommand: npm ci --include=dev && npx prisma generate --schema=prisma/schema.postgresql.prisma && npm run build
     startCommand: npm start
     healthCheckPath: /api/health
     envVars:
@@ -33,7 +33,7 @@ services:
     runtime: node
     rootDir: notification-service
     plan: free
-    buildCommand: npm ci && npm run build
+    buildCommand: npm ci --include=dev && npm run build
     startCommand: npm start
     healthCheckPath: /api/notifications/health
     envVars:
