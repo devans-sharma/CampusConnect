@@ -9,7 +9,7 @@ const sendNotificationSchema = z.object({
   type: z.string().min(1, 'Notification type is required'),
   title: z.string().min(1, 'Title is required'),
   message: z.string().min(1, 'Message is required'),
-  metadata: z.record(z.any()).optional(),
+  metadata: z.record(z.string(), z.any()).optional(),
 });
 
 export const handleSendNotification = async (req: Request, res: Response) => {
@@ -27,7 +27,7 @@ export const handleSendNotification = async (req: Request, res: Response) => {
       return res.status(400).json({
         success: false,
         error: 'Validation failed',
-        details: error.errors,
+        details: error.issues,
       });
     }
 
@@ -35,7 +35,6 @@ export const handleSendNotification = async (req: Request, res: Response) => {
     return res.status(500).json({
       success: false,
       error: 'Internal notification service error',
-      message: error.message,
     });
   }
 };

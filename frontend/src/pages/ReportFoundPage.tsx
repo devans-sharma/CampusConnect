@@ -31,7 +31,8 @@ const reportFoundSchema = z.object({
   contactPreference: z.enum(['EMAIL', 'PHONE', 'IN_APP']).default('IN_APP'),
 });
 
-type ReportFoundFormData = z.infer<typeof reportFoundSchema>;
+type ReportFoundFormInput = z.input<typeof reportFoundSchema>;
+type ReportFoundFormData = z.output<typeof reportFoundSchema>;
 
 export const ReportFoundPage: React.FC = () => {
   const navigate = useNavigate();
@@ -47,7 +48,7 @@ export const ReportFoundPage: React.FC = () => {
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm<ReportFoundFormData>({
+  } = useForm<ReportFoundFormInput, any, ReportFoundFormData>({
     resolver: zodResolver(reportFoundSchema),
     defaultValues: {
       currentHoldingLocation: 'Deposited at Security Office',

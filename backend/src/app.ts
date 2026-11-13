@@ -22,17 +22,22 @@ const app = express();
 app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" },
 }));
+const allowedOrigins = config.nodeEnv === 'production'
+  ? config.frontendUrl.split(',').map((origin) => origin.trim().replace(/\/$/, '')).filter(Boolean)
+  : true;
+
 app.use(cors({
-  origin: '*',
+  origin: allowedOrigins,
   credentials: true,
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(morgan('dev'));
+app.use(morgan(config.nodeEnv === 'production' ? 'tiny' : 'dev'));
 
-// Static uploads directory
-const uploadPath = path.resolve(process.cwd(), config.uploadDir);
-app.use('/uploads', express.static(uploadPath));
+// Disk uploads are only durable in local development. Production uses Cloudinary URLs.
+if (config.nodeEnv !== 'production') {
+  app.use('/uploads', express.static(path.resolve(process.cwd(), config.uploadDir)));
+}
 
 // API Routes
 app.use('/api/auth', authRoutes);
@@ -44,7 +49,7 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/admin', adminRoutes);
 
 // Health check
-app.get('/api/health', (req, res) => {
+app.get(['/health', '/api/health'], (_req, res) => {
   res.json({
     status: 'healthy',
     service: 'CampusConnect Main Backend API',

@@ -19,7 +19,8 @@ const registerSchema = z.object({
   path: ['confirmPassword'],
 });
 
-type RegisterFormData = z.infer<typeof registerSchema>;
+type RegisterFormInput = z.input<typeof registerSchema>;
+type RegisterFormData = z.output<typeof registerSchema>;
 
 export const RegisterPage: React.FC = () => {
   const navigate = useNavigate();
@@ -32,7 +33,7 @@ export const RegisterPage: React.FC = () => {
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm<RegisterFormData>({
+  } = useForm<RegisterFormInput, any, RegisterFormData>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
       yearOfStudy: 1,

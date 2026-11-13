@@ -1,269 +1,169 @@
-# CampusConnect — Campus Lost & Found Management Platform
+# CampusConnect — Campus Lost and Found Portal
 
-CampusConnect is a modern, production-grade university lost-and-found management portal designed to streamline the reporting, tracking, verification, and reunification of lost personal belongings across university grounds.
+CampusConnect lets students report lost or found items, browse listings, submit ownership claims, and track collection. Administrators manage listings, verify claims, and oversee users. The existing React/Vite frontend, Express/Prisma API, and independent notification service are preserved.
 
-Built with a clean university-grade design system, relational data persistence via **Prisma ORM**, a **Node.js/Express REST API**, a standalone **Notification Microservice**, an intelligent **Lost & Found Matching Engine**, and full **HTML5 Camera Capture & Photo Gallery Uploads**.
+## Repository layout
 
----
+- `frontend/` — React 18, Vite, TypeScript, Tailwind CSS
+- `backend/` — Express, TypeScript, Prisma API and SQLite/PostgreSQL schemas
+- `notification-service/` — independently deployed Express email dispatcher
+- `render.yaml` — Render services and PostgreSQL blueprint
+- `frontend/vercel.json` — SPA route fallback for Vercel
 
-## 1. System Architecture Overview
+## Local development
 
-CampusConnect follows a clean, modular multi-tier architecture:
-
-```
-campus-lost-found/
-├── frontend/                 # React 18 + Vite + TypeScript + Tailwind CSS (Port 5173)
-├── backend/                  # Express REST API + TypeScript + Prisma ORM (Port 5000)
-│   ├── prisma/               # Schema, migrations, and realistic synthetic seed dataset
-│   ├── src/                  # Controllers, services, domain logic, middleware, routes
-│   └── tests/                # Automated API & business rule test suite (Vitest + Supertest)
-├── notification-service/     # Standalone Express Notification Microservice (Port 5001)
-│   ├── src/                  # Notification dispatcher & email service (Nodemailer)
-│   └── tests/                # Microservice health & dispatch tests
-├── README.md                 # System documentation & setup guide
-├── .env.example              # Environment variables template
-└── package.json              # Root project orchestrator scripts
-```
-
-### Architectural Boundaries & Service Communication
-- **Frontend ↔ Backend**: Secure REST API over JSON with JWT Bearer authentication. Proxied via Vite dev server.
-- **Backend ↔ Database**: Relational persistence using Prisma ORM. Compatible out-of-the-box with SQLite (`dev.db`) for immediate zero-dependency evaluation, and PostgreSQL (`schema.postgresql.prisma`) for enterprise deployment.
-- **Backend ↔ Notification Microservice**: HTTP REST dispatch boundary (`POST http://localhost:5001/api/notifications/send`). The main backend persists notifications directly in the database and asynchronously delegates dispatch/email generation to the isolated microservice.
-- **Microservice ↔ External SMTP**: Sends formatted HTML emails via Nodemailer when SMTP environment variables are present; gracefully logs delivery when unconfigured while keeping in-app notifications intact.
-
----
-
-## 2. Key Features
-
-### 🎓 Student Features
-- **Lost Item Reporting**: Detailed form including approximate location, category, date, brand, color, distinguishing characteristics, and contact preferences.
-- **Found Property Registration**: Separate **Public Description** (browsable by all students) and **Private Verification Details** (strictly confidential, visible only to finder and campus administrators).
-- **Direct Camera Capture & Photo Gallery**:
-  - Live HTML5 camera capture via `navigator.mediaDevices.getUserMedia` with video canvas snapshot.
-  - Device photo gallery / computer file upload.
-  - Supports up to 5 photographs per listing with preview, deletion, and primary cover selection.
-- **Marketplace Browsing & Search**:
-  - Full-text search across item name, description, brand, color, and campus location.
-  - Filters by Type (`LOST` / `FOUND`), Category, Campus Location, and Status.
-  - Sort by newest or oldest, with pagination.
-- **Intelligent Algorithm Matching Engine**:
-  - When reporting or viewing lost items, an algorithmic engine calculates match confidence percentages (0–100%) against existing found items using category alignment, keyword overlap, color, location proximity, and timeline closeness.
-- **Ownership Claim Workflow**:
-  - Students submit structured claims explaining proof of ownership and identifying marks.
-  - Prevents claiming one's own found items.
-  - Prevents duplicate active claims on the same item.
-- **Pickup & Collection Tracking**:
-  - Tracks status: `Scheduled`, `Ready for Pickup`, and `Collected`.
-  - Details collection counter location, date/time, and verification instructions.
-- **Student Dashboard**:
-  - Live counts of reported items, active claims, and reunited items.
-  - Management of personal listings (status transitions, deletion, viewing received claims).
-  - Notifications inbox with real-time unread badges.
-
-### 🛡️ Administration Features
-- **Administrative Dashboard Overview**: Real-time aggregated database statistics for registered students, missing items, turned-in items, and recovery rates.
-- **Category & Location Analytics**: Visual distribution of reported items across campus locations and categories.
-- **Item Listings Oversight**: Ability to inspect confidential private verification notes for any item, moderate content, change lifecycle statuses, and delete inappropriate listings.
-- **Claims Management**: Centralised review of ownership claims with access to claimant university details and supporting evidence.
-- **User Account Management**: Search students by Student ID, name, or department, with instant account suspension and reactivation controls.
-- **Audit Logging**: Comprehensive audit trail of actions (`ITEM_CREATED`, `CLAIM_APPROVED`, `COLLECTION_CONFIRMED`, `USER_SUSPENDED`).
-
----
-
-## 3. Technology Stack
-
-| Layer | Technology |
-|---|---|
-| **Frontend Framework** | React 18, Vite, TypeScript |
-| **Styling & Icons** | Tailwind CSS, Lucide React |
-| **Routing & Forms** | React Router 7, React Hook Form, Zod |
-| **API Client** | Axios (configured with JWT interceptors) |
-| **Backend Framework** | Node.js, Express.js, TypeScript |
-| **Security & Auth** | JWT (jsonwebtoken), bcryptjs, Helmet, CORS |
-| **Database & ORM** | PostgreSQL / SQLite, Prisma ORM 5.22 |
-| **File Storage** | Multer disk storage (served statically at `/uploads`) |
-| **Notification Microservice** | Node.js, Express, Nodemailer, Zod |
-| **Testing** | Vitest, Supertest |
-
----
-
-## 4. Database Schema & Entities
-
-The relational schema implements proper foreign keys, unique constraints, and indexes:
-
-- **User**: `id`, `fullName`, `email` (unique), `studentId` (unique), `passwordHash`, `department`, `yearOfStudy`, `role` (`STUDENT` | `ADMIN`), `accountStatus` (`ACTIVE` | `SUSPENDED`).
-- **Category**: `id`, `name` (unique), `description`, `icon`.
-- **Item**: `id`, `referenceNumber` (unique), `reporterId` (FK User), `categoryId` (FK Category), `itemType` (`LOST` | `FOUND`), `publicDescription`, `privateVerificationDetails` (confidential), `location`, `dateOccurred`, `colour`, `brand`, `distinguishingFeatures`, `currentHoldingLocation`, `status`, `createdAt`.
-- **ItemImage**: `id`, `itemId` (FK Item, cascade), `imageUrl`, `isPrimary`, `createdAt`.
-- **Claim**: `id`, `referenceNumber` (unique), `itemId` (FK Item), `claimantId` (FK User), `claimDescription`, `identifyingCharacteristics`, `supportingEvidence`, `status` (`PENDING` | `UNDER_REVIEW` | `APPROVED` | `REJECTED`), `rejectionReason`, `verificationNotes`.
-- **Collection**: `id`, `claimId` (FK Claim, 1-to-1), `collectionLocation`, `collectionInstructions`, `scheduledAt`, `collectedAt`, `confirmedById` (FK User), `status` (`SCHEDULED` | `COLLECTED`), `handoverNotes`.
-- **Notification**: `id`, `userId` (FK User), `title`, `message`, `type`, `link`, `isRead`, `createdAt`.
-- **AuditLog**: `id`, `actorId` (FK User), `action`, `entityType`, `entityId`, `details`, `createdAt`.
-
----
-
-## 5. Prerequisites
-
-- **Node.js**: v18.0.0 or newer (Tested on Node.js v24)
-- **npm** or **pnpm** package manager
-- **PostgreSQL** (optional for production; SQLite is configured out-of-the-box for instant local setup)
-
----
-
-## 6. Installation & Quick Start
-
-### Step 1: Clone or Navigate to the Project
-```bash
-cd "FULL STACK TASK 4"
-```
-
-### Step 2: Database Initialization & Seeding
-The database is pre-configured with SQLite (`dev.db`) for zero-friction setup. Run the following commands to generate Prisma Client and populate the database with realistic synthetic campus data:
+Use Node.js 20+ and npm. (Nodemailer 10, used by the notification service, requires Node.js 20 or newer.) Install dependencies in each service:
 
 ```bash
-# Generate Prisma Client
-npm --prefix backend run prisma:generate
-
-# Push database schema (creates dev.db)
-npm --prefix backend run prisma:push
-
-# Seed database with realistic accounts, items, claims & collections
-npm --prefix backend run db:seed
+npm ci --prefix backend
+npm ci --prefix notification-service
+npm ci --prefix frontend
 ```
 
-> **Using PostgreSQL?**
-> If you have a PostgreSQL server running, update `backend/.env` with your connection string:
-> `DATABASE_URL="postgresql://postgres:password@localhost:5432/campus_lost_found?schema=public"`
-> Copy `backend/prisma/schema.postgresql.prisma` to `backend/prisma/schema.prisma` and run `npm --prefix backend run prisma:push`.
+Copy `backend/.env.example` to `backend/.env` and keep `DATABASE_URL="file:./dev.db"`. Copy `notification-service/.env.example` to `notification-service/.env`. For local use, leave `NOTIFICATION_SERVICE_SECRET` blank in both services; service-to-service authentication is enabled when a secret is set. SMTP is optional. Start each service in its own terminal:
 
----
-
-## 7. Running the Application
-
-To run all three services, open three separate terminal windows:
-
-### Terminal 1: Notification Microservice (Port 5001)
 ```bash
 npm --prefix notification-service run dev
-```
-*Health check:* `http://localhost:5001/api/notifications/health`
-
-### Terminal 2: Main Backend API (Port 5000)
-```bash
+npm --prefix backend run prisma:generate
+npm --prefix backend run prisma:push
+npm --prefix backend run db:seed
 npm --prefix backend run dev
-```
-*Health check:* `http://localhost:5000/api/health`
-
-### Terminal 3: React Frontend (Port 5173)
-```bash
 npm --prefix frontend run dev
 ```
-*Application URL:* `http://localhost:5173`
 
----
+Open `http://localhost:5173`. API health checks are at `http://localhost:5000/api/health` and `http://localhost:5001/api/notifications/health`. Vite proxies `/api` and `/uploads` to the local API. Local item photos are stored under `backend/uploads`.
 
-## 8. Demo Login Credentials
+## GitHub
 
-The database seed script generates realistic university accounts for testing and demonstration:
+The existing repository is [devans-sharma/CampusConnect](https://github.com/devans-sharma/CampusConnect), on `main`. Commit and push this prepared working tree when you are ready; this project setup does not commit or push automatically. Never commit `.env`, database files, uploads, or service credentials.
 
-| Role | Name | University Email | Password | Student ID |
-|---|---|---|---|---|
-| **Administrator** | Dean Michael Vance | `admin@campusconnect.edu` | `Admin@12345` | `ADM-9001` |
-| **Student (CS Year 3)** | Sarah Chen | `sarah.chen@campusconnect.edu` | `Student@12345` | `STU-2023-4412` |
-| **Student (MechEng Year 2)** | Marcus Johnson | `marcus.johnson@campusconnect.edu` | `Student@12345` | `STU-2024-8891` |
-| **Student (Business Year 4)** | Priya Sharma | `priya.sharma@campusconnect.edu` | `Student@12345` | `STU-2022-1054` |
-| **Student (EE Year 1)** | David Kim | `david.kim@campusconnect.edu` | `Student@12345` | `STU-2025-3319` |
+## Production architecture
 
-> 💡 **Quick Login Tip**: The login page (`/login`) includes **1-Click Demo Buttons** for instant evaluation without typing credentials.
+| Part | Host | Root directory |
+|---|---|---|
+| Frontend | Vercel | `frontend` |
+| API | Render Web Service | `backend` |
+| Notification service | Render Web Service | `notification-service` |
+| Database | Render PostgreSQL | managed by `render.yaml` |
+| Images | Cloudinary | managed account |
 
----
+### 1. Create the Render services
 
-## 9. Automated Test Results
+In Render, choose **New → Blueprint**, connect the GitHub repository, and let Render read the root `render.yaml`. It defines a PostgreSQL database plus two independently built Node services. The API build uses the PostgreSQL Prisma schema; the notification service builds separately. The database is not seeded or changed during deploy.
 
-The project includes unit and integration tests using **Vitest** and **Supertest**.
+The Blueprint selects always-on paid entry plans: two `0.5c-512mb` web services and one `0.1c-256mb` Postgres database. Render currently lists these at $7/month per web service and $6/month for Postgres (about $20/month total before any storage or bandwidth charges). Check [Render's current pricing](https://render.com/pricing) before creating the resources; plan prices can change.
 
-### Running Tests
+After the services are created, set these service values in the Render dashboard:
+
+- API `FRONTEND_URL`: your Vercel production origin, e.g. `https://campusconnect.vercel.app`. Add preview/custom origins as comma-separated origins if needed.
+- API `NOTIFICATION_SERVICE_URL`: the notification service origin, e.g. `https://campusconnect-notifications.onrender.com` (no `/api` suffix).
+- API Cloudinary values: `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`.
+- Both services use the same generated `NOTIFICATION_SERVICE_SECRET`; the blueprint shares the API value with the notification service.
+- API `DATABASE_URL` is wired from the private Render database connection string. Do not put a database URL in source control.
+- `JWT_SECRET` is generated by the blueprint. Keep it private and stable after users have signed in.
+- Notification SMTP variables are optional. Set `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, and `SMTP_FROM` only if email delivery is wanted. In-app notifications are stored in the API database without SMTP.
+
+Render service commands are already defined: backend builds with `npm ci`, PostgreSQL `prisma generate`, and `npm run build`, then runs `npm start`; notifications use `npm ci`, `npm run build`, then `npm start`. Both bind to Render's `PORT` on `0.0.0.0`. Health paths are `/api/health` and `/api/notifications/health`.
+
+### 2. Initialize the PostgreSQL database once
+
+The local `backend/prisma/schema.prisma` remains SQLite. Production uses the matching existing `backend/prisma/schema.postgresql.prisma`. From a trusted local checkout, after setting `DATABASE_URL` to the **new, empty Render database** (use the Render external connection string temporarily in your local shell; remove it afterward), run:
+
 ```bash
-# Run notification microservice tests
-npm --prefix notification-service test
-
-# Run backend API & business logic integration tests
-npm --prefix backend test
+npm ci --prefix backend
+npm --prefix backend run prisma:generate:postgres
+npm --prefix backend run prisma:push:postgres -- --skip-generate
 ```
 
-### Verified Business Rules in Backend Test Suite:
-1. `POST /api/items`: Successful item creation with formatted reference number (`LF-2026-XXXX`).
-2. `POST /api/items`: Fails item creation when required fields are missing (server Zod validation).
-3. `GET /api/items/:id`: **Confidential Private Verification Details are NOT leaked** to unauthorized students or public APIs.
-4. `POST /api/claims`: Prevents students from submitting ownership claims on items they reported found themselves.
-5. `POST /api/claims`: Successfully accepts legitimate claim from other students.
-6. `POST /api/claims`: **Prevents duplicate active claims** from the same user for the same item.
-7. `PATCH /api/claims/:id/review`: **Rejects claim review when status is REJECTED without a rejection reason**.
-8. `PATCH /api/claims/:id/review`: Successfully approves claim and transitions item status to `CLAIM_APPROVED`.
-9. `PATCH /api/items/:id/status`: Enforces valid lifecycle status transitions and rejects invalid states.
-10. `GET /api/admin/dashboard`: **Prevents unauthorized students from accessing protected admin endpoints** (HTTP 403 Forbidden).
-11. `POST /api/collections/schedule`: Successfully schedules item collection handover with location and instructions.
-12. `PATCH /api/collections/:id/confirm`: Confirms item collection handover, records confirmedBy timestamp, and transitions item to `RETURNED`.
-13. `GET /api/admin/dashboard`: Admin dashboard aggregates real database counts and metrics.
+Review the Prisma output. Do not add `--accept-data-loss`, and stop if Prisma reports that existing data would be dropped. This repository has no migration history yet; `db push` is intended only to initialize the new empty database from the checked-in PostgreSQL schema. For future schema changes, introduce and review Prisma migrations before applying changes to live data. `db push` is not run automatically by Render.
 
----
+### 3. Seed the demo database once (optional)
 
-## 10. REST API Documentation
-
-### Authentication (`/api/auth`)
-- `POST /api/auth/register` — Register student account with duplicate email/student ID protection.
-- `POST /api/auth/login` — Login with university email and password, returning JWT token.
-- `GET /api/auth/me` — Retrieve current authenticated user profile.
-- `POST /api/auth/logout` — Invalidate session.
-
-### Items (`/api/items`)
-- `GET /api/items` — Query items with search, filters (type, category, location, status), sort, and pagination.
-- `GET /api/items/categories` — List all campus property categories.
-- `GET /api/items/:id` — Retrieve item details, similar category items, and smart matching candidates.
-- `POST /api/items` — Report lost/found item with multipart image upload (up to 5 photos).
-- `PUT /api/items/:id` — Update listing details (Reporter/Admin only).
-- `DELETE /api/items/:id` — Delete listing and associated media (Reporter/Admin only).
-- `PATCH /api/items/:id/status` — Enforce valid status transition.
-- `POST /api/items/upload` — Dedicated multipart image upload endpoint.
-
-### Claims (`/api/claims`)
-- `POST /api/claims` — Submit ownership claim with proof and identifying marks.
-- `GET /api/claims` — Retrieve claims (filtered for students or all for admins).
-- `GET /api/claims/:id` — Retrieve claim details, claimant info, and verification notes.
-- `PATCH /api/claims/:id/review` — Approve, decline (requires reason), or request more info.
-
-### Collections (`/api/collections`)
-- `POST /api/collections/schedule` — Schedule pickup location and instructions.
-- `PATCH /api/collections/:id/confirm` — Confirm physical handover and mark item as `RETURNED`.
-- `GET /api/collections/:id` — View collection record.
-
-### Administration (`/api/admin`)
-- `GET /api/admin/dashboard` — Platform overview metrics and category/location distributions.
-- `GET /api/admin/users` — Search and paginate registered university users.
-- `PATCH /api/admin/users/:id/status` — Suspend or reactivate user account.
-- `GET /api/admin/items` — Audit all listings including private verification notes.
-- `GET /api/admin/claims` — Full claims oversight.
-
----
-
-## 11. Production Build Commands
+Only seed a new empty production database. The seed script checks every application table in production and exits without deleting or replacing data if any records exist. In PowerShell, set `DATABASE_URL` to the Render external connection string and `NODE_ENV` to `production`, then run:
 
 ```bash
-# Build backend to dist/
-npm --prefix backend run build
+$env:NODE_ENV = 'production'
+$env:DATABASE_URL = 'postgresql://USER:PASSWORD@EXTERNAL_HOST:5432/DATABASE?sslmode=require'
+npm --prefix backend run prisma:generate:postgres
+npm --prefix backend run db:seed
+Remove-Item Env:DATABASE_URL
+Remove-Item Env:NODE_ENV
+```
 
-# Build notification microservice to dist/
-npm --prefix notification-service run build
+Run this only once, and clear the temporary external database URL from your shell/history afterward. The seed creates five demo accounts, categories, sample listings, claims, collections, and audit data. It never runs automatically on deploy.
 
-# Build frontend to dist/
+### 4. Deploy the Vercel frontend
+
+Import the same GitHub repository in Vercel and set:
+
+- Root Directory: `frontend`
+- Framework preset: Vite
+- Build Command: `npm run build`
+- Output Directory: `dist`
+- Environment variable `VITE_API_URL`: the backend origin, for example `https://campusconnect-api.onrender.com` (no trailing slash and no `/api` suffix)
+
+Redeploy after setting `VITE_API_URL`. The shared Axios client adds `/api` once. `frontend/vercel.json` rewrites nested routes to `index.html`, so refreshing a React Router page works. Add the Vercel origin to the API's comma-separated `FRONTEND_URL` value.
+
+### 5. Configure Cloudinary
+
+Create a Cloudinary account and copy its cloud name, API key, and API secret to the Render API environment. These are server-only values. Production accepts JPEG, PNG, and WebP files up to 5 MB each, with up to five images. Reports and the dedicated image endpoint upload to Cloudinary and return secure URLs; local development continues to store files on disk.
+
+## Environment variables
+
+| Service | Variable | Required | Purpose |
+|---|---|---:|---|
+| API | `DATABASE_URL` | Yes | SQLite locally; PostgreSQL on Render |
+| API | `JWT_SECRET` | Yes | At least 32 characters in production |
+| API | `NODE_ENV`, `PORT` | Yes on Render | Runtime mode and Render-assigned port |
+| API | `FRONTEND_URL` | Yes in production | Comma-separated allowed browser origins |
+| API | `NOTIFICATION_SERVICE_URL` | Yes in production | Notification service origin |
+| API + notifications | `NOTIFICATION_SERVICE_SECRET` | Yes in production | Shared internal request authentication |
+| API | `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | Yes in production | Private Cloudinary credentials |
+| API | `UPLOAD_DIR` | No | Local upload folder; defaults to `./uploads` |
+| Frontend | `VITE_API_URL` | Yes on Vercel | Backend origin only; shared client appends `/api` |
+| Notifications | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | No | Optional outbound email settings |
+
+Use the service-specific `.env.example` files for local setup. Never use production credentials in a checked-in file or expose Cloudinary/API secrets through a `VITE_` variable.
+
+## Demo login credentials
+
+| Role | Email | Password |
+|---|---|---|
+| Admin | `admin@campusconnect.edu` | `Admin@12345` |
+| Student | `sarah.chen@campusconnect.edu` | `Student@12345` |
+| Student | `marcus.johnson@campusconnect.edu` | `Student@12345` |
+| Student | `priya.sharma@campusconnect.edu` | `Student@12345` |
+| Student | `david.kim@campusconnect.edu` | `Student@12345` |
+
+These are demo credentials and should be replaced or disabled before inviting real users.
+
+## Build and test commands
+
+```bash
 npm --prefix frontend run build
+npm --prefix backend run build
+npm --prefix notification-service run build
+npm --prefix backend test
+npm --prefix notification-service test
 ```
 
----
+Prisma validation (run from `backend/`). SQLite validation needs no extra settings. For PostgreSQL validation, set a PostgreSQL-shaped URL in PowerShell; Prisma validates the schema without connecting to the database:
 
-## 12. Troubleshooting
+```bash
+npx prisma validate --schema prisma/schema.prisma
+$env:DATABASE_URL = 'postgresql://user:password@localhost:5432/campusconnect?schema=public'
+npx prisma validate --schema prisma/schema.postgresql.prisma
+Remove-Item Env:DATABASE_URL
+```
 
-1. **Port in use error (EADDRINUSE)**: Ensure ports 5000, 5001, and 5173 are not occupied. You can configure custom ports via the `.env` files in each service directory.
-2. **Prisma Client not found**: Run `npm --prefix backend run prisma:generate`.
-3. **Database tables empty**: Run `npm --prefix backend run db:seed` to repopulate the sample records.
-4. **Camera permission issue**: Ensure browser permissions for camera access are allowed, or use the file upload selector to choose images directly from your disk.
+Backend integration tests modify records. Point `DATABASE_URL` at a disposable copy of the seeded SQLite database before running them; do not run tests against your working local database or production.
+
+## Live deployment checklist
+
+- Open both health endpoints and confirm they return `healthy`.
+- Sign in as an admin and at least one student using the demo accounts.
+- Report a lost item and a found item; upload one and several photos, then confirm their secure URLs render.
+- Open a listing as another student and verify private verification details remain hidden.
+- Submit a claim, review it as the item reporter/admin, and schedule and confirm collection.
+- Confirm in-app notifications persist when SMTP is unset; if SMTP is configured, verify email delivery too.
+- Check the API and notification service logs for startup/configuration errors, then remove/rotate demo credentials before public use.

@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
@@ -5,6 +6,16 @@ const prisma = new PrismaClient();
 
 async function main() {
   console.log('[Seed] Starting database seeding for CampusConnect...');
+
+  if (process.env.NODE_ENV === 'production') {
+    const existing = await Promise.all([
+      prisma.user.count(), prisma.category.count(), prisma.item.count(), prisma.itemImage.count(),
+      prisma.claim.count(), prisma.collection.count(), prisma.notification.count(), prisma.auditLog.count(),
+    ]);
+    if (existing.some((count) => count > 0)) {
+      throw new Error('Refusing to seed a non-empty production database. The seed is a one-time demo initializer and never replaces existing records.');
+    }
+  }
 
   // Clean existing records in reverse dependency order
   await prisma.auditLog.deleteMany();

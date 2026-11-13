@@ -32,7 +32,8 @@ const reportLostSchema = z.object({
   contactPreference: z.enum(['EMAIL', 'PHONE', 'IN_APP']).default('IN_APP'),
 });
 
-type ReportLostFormData = z.infer<typeof reportLostSchema>;
+type ReportLostFormInput = z.input<typeof reportLostSchema>;
+type ReportLostFormData = z.output<typeof reportLostSchema>;
 
 export const ReportLostPage: React.FC = () => {
   const navigate = useNavigate();
@@ -51,7 +52,7 @@ export const ReportLostPage: React.FC = () => {
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm<ReportLostFormData>({
+  } = useForm<ReportLostFormInput, any, ReportLostFormData>({
     resolver: zodResolver(reportLostSchema),
     defaultValues: {
       contactPreference: 'IN_APP',

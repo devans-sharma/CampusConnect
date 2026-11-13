@@ -1,0 +1,63 @@
+databases:
+  - name: campusconnect-db
+    plan: 0.1c-256mb
+    databaseName: campusconnect
+    user: campusconnect
+
+services:
+  - type: web
+    name: campusconnect-api
+    runtime: node
+    rootDir: backend
+    plan: 0.5c-512mb
+    buildCommand: npm ci && npx prisma generate --schema=prisma/schema.postgresql.prisma && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: campusconnect-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: FRONTEND_URL
+        sync: false
+      - key: NOTIFICATION_SERVICE_URL
+        sync: false
+      - key: NOTIFICATION_SERVICE_SECRET
+        generateValue: true
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+
+  - type: web
+    name: campusconnect-notifications
+    runtime: node
+    rootDir: notification-service
+    plan: 0.5c-512mb
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/notifications/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NOTIFICATION_SERVICE_SECRET
+        fromService:
+          type: web
+          name: campusconnect-api
+          envVarKey: NOTIFICATION_SERVICE_SECRET
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: SMTP_FROM
+        sync: false

@@ -46,6 +46,9 @@ export class NotificationClient {
       try {
         const response = await axios.post(`${config.notificationServiceUrl}/api/notifications/send`, payload, {
           timeout: 4000,
+          headers: config.notificationServiceSecret
+            ? { 'x-notification-service-secret': config.notificationServiceSecret }
+            : undefined,
         });
         console.log(`[NotificationClient] Dispatched to microservice: ${response.data.message || 'Success'}`);
       } catch (microserviceError: any) {

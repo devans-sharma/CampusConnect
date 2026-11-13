@@ -8,8 +8,8 @@ const startServer = async () => {
     await prisma.$connect();
     console.log('[Backend] Connected successfully to relational database.');
 
-    app.listen(config.port, () => {
-      console.log(`[Backend] CampusConnect API running on http://localhost:${config.port}`);
+    app.listen(config.port, '0.0.0.0', () => {
+      console.log(`[Backend] CampusConnect API running on port ${config.port}`);
       console.log(`[Backend] Environment: ${config.nodeEnv}`);
     });
   } catch (error) {

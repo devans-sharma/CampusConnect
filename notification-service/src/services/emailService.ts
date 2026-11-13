@@ -2,7 +2,7 @@ import nodemailer from 'nodemailer';
 import { config } from '../config/env.js';
 
 class EmailService {
-  private transporter: nodemailer.Transporter | null = null;
+  private transporter: ReturnType<typeof nodemailer.createTransport> | null = null;
   private isConfigured: boolean = false;
 
   constructor() {
@@ -17,7 +17,7 @@ class EmailService {
         },
       });
       this.isConfigured = true;
-      console.log('[EmailService] SMTP configured with host:', config.smtp.host);
+      console.log('[EmailService] SMTP configured.');
     } else {
       console.log('[EmailService] SMTP not configured. External email delivery will be skipped (in-app notifications will function normally).');
     }

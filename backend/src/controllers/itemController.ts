@@ -3,6 +3,7 @@ import { ItemService } from '../services/itemService.js';
 import { createItemSchema, updateItemStatusSchema } from '../validators/index.js';
 import { sendSuccess, sendError } from '../utils/apiResponse.js';
 import { prisma } from '../config/prisma.js';
+import { getFileUrls, removeFileUrls } from '../config/storage.js';
 
 export const createItem = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -15,7 +16,7 @@ export const createItem = async (req: Request, res: Response, next: NextFunction
     // Extract uploaded files if any
     let imageUrls: string[] = [];
     if (req.files && Array.isArray(req.files)) {
-      imageUrls = (req.files as Express.Multer.File[]).map(file => `/uploads/${file.filename}`);
+      imageUrls = await getFileUrls(req.files as Express.Multer.File[]);
     } else if (req.body.imageUrls && Array.isArray(req.body.imageUrls)) {
       imageUrls = req.body.imageUrls;
     }
@@ -24,12 +25,18 @@ export const createItem = async (req: Request, res: Response, next: NextFunction
       ? parseInt(req.body.primaryImageIndex, 10) 
       : 0;
 
-    const result = await ItemService.createItem({
-      ...validated,
-      reporterId: req.user.id,
-      imageUrls,
-      primaryImageIndex: primaryIndex,
-    });
+    let result;
+    try {
+      result = await ItemService.createItem({
+        ...validated,
+        reporterId: req.user.id,
+        imageUrls,
+        primaryImageIndex: primaryIndex,
+      });
+    } catch (error) {
+      await removeFileUrls(imageUrls);
+      throw error;
+    }
 
     return sendSuccess(res, result, 'Item reported successfully!', 201);
   } catch (error: any) {
@@ -149,20 +156,21 @@ export const getCategories = async (req: Request, res: Response, next: NextFunct
   }
 };
 
-export const uploadMedia = (req: Request, res: Response) => {
+export const uploadMedia = async (req: Request, res: Response, next: NextFunction) => {
   try {
     if (!req.files || !Array.isArray(req.files) || req.files.length === 0) {
       return sendError(res, 'No files were uploaded.', 400);
     }
 
     const files = req.files as Express.Multer.File[];
-    const uploadedUrls = files.map(file => `/uploads/${file.filename}`);
+    const uploadedUrls = await getFileUrls(files);
 
     return sendSuccess(res, {
       urls: uploadedUrls,
       count: uploadedUrls.length,
     }, 'Images uploaded successfully');
   } catch (error: any) {
-    return sendError(res, error.message, 500);
+    if (error.statusCode) return sendError(res, error.message, error.statusCode);
+    next(error);
   }
 };
