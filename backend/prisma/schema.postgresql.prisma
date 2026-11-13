@@ -1,0 +1,164 @@
+// Campus Lost & Found — CampusConnect Prisma Schema (PostgreSQL Production)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String    @id @default(uuid())
+  fullName     String
+  email        String    @unique
+  studentId    String    @unique
+  passwordHash String
+  department   String
+  yearOfStudy  Int
+  role         String    @default("STUDENT") // STUDENT | ADMIN
+  accountStatus String   @default("ACTIVE")  // ACTIVE | SUSPENDED
+  profileImage String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  items                Item[]
+  claims               Claim[]
+  confirmedCollections Collection[] @relation("ConfirmedBy")
+  notifications        Notification[]
+  auditLogs            AuditLog[]
+
+  @@index([email])
+  @@index([studentId])
+  @@index([role])
+}
+
+model Category {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String
+  icon        String   @default("Tag")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  items Item[]
+}
+
+model Item {
+  id                         String      @id @default(uuid())
+  referenceNumber            String      @unique
+  reporterId                 String
+  itemName                   String
+  categoryId                 String
+  itemType                   String      // LOST | FOUND
+  publicDescription          String
+  privateVerificationDetails String?     // Visible only to reporter & admin
+  location                   String
+  dateOccurred               DateTime
+  colour                     String?
+  brand                      String?
+  distinguishingFeatures     String?
+  currentHoldingLocation     String?
+  contactPreference          String      @default("IN_APP")
+  status                     String      @default("ACTIVE")
+  createdAt                  DateTime    @default(now())
+  updatedAt                  DateTime    @updatedAt
+
+  reporter User        @relation(fields: [reporterId], references: [id], onDelete: Cascade)
+  category Category    @relation(fields: [categoryId], references: [id])
+  images   ItemImage[]
+  claims   Claim[]
+
+  @@index([referenceNumber])
+  @@index([itemType])
+  @@index([status])
+  @@index([categoryId])
+  @@index([location])
+}
+
+model ItemImage {
+  id        String   @id @default(uuid())
+  itemId    String
+  imageUrl  String
+  isPrimary Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  item Item @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([itemId])
+}
+
+model Claim {
+  id                          String      @id @default(uuid())
+  referenceNumber             String      @unique
+  itemId                      String
+  claimantId                  String
+  claimDescription            String
+  identifyingCharacteristics  String
+  supportingEvidence          String?
+  status                      String      @default("PENDING")
+  rejectionReason             String?
+  verificationNotes           String?
+  createdAt                   DateTime    @default(now())
+  updatedAt                   DateTime    @updatedAt
+
+  item       Item        @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  claimant   User        @relation(fields: [claimantId], references: [id], onDelete: Cascade)
+  collection Collection?
+
+  @@index([referenceNumber])
+  @@index([itemId])
+  @@index([claimantId])
+  @@index([status])
+}
+
+model Collection {
+  id                     String    @id @default(uuid())
+  claimId                String    @unique
+  collectionLocation     String
+  collectionInstructions String
+  scheduledAt            DateTime
+  collectedAt            DateTime?
+  confirmedById          String?
+  status                 String    @default("PENDING")
+  handoverNotes          String?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+
+  claim       Claim @relation(fields: [claimId], references: [id], onDelete: Cascade)
+  confirmedBy User? @relation("ConfirmedBy", fields: [confirmedById], references: [id])
+
+  @@index([status])
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  title     String
+  message   String
+  type      String
+  link      String?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([isRead])
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  actorId    String?
+  action     String
+  entityType String
+  entityId   String
+  details    String?
+  createdAt  DateTime @default(now())
+
+  actor User? @relation(fields: [actorId], references: [id])
+
+  @@index([action])
+  @@index([entityType])
+}
